@@ -822,7 +822,7 @@ bool ACAN2517FD::receive (CANFDMessage & outMessage) {
       if (mINT == 255) { // No interrupt pin
         mRxInterruptEnabled = true ;
         isr_poll_core () ; // Perform polling
-      }else if (!mRxInterruptEnabled) {
+      } else if (!mRxInterruptEnabled) {
         mRxInterruptEnabled = true ;
         uint8_t data8 = readRegister8Assume_SPI_transaction (INT_REGISTER + 2) ;
         data8 |= (1 << 1) ; // Receive FIFO Interrupt Enable
@@ -1020,16 +1020,13 @@ void ACAN2517FD::receiveInterrupt (void) {
     message.id = ((tempID >> 11) & 0x3FFFF) | ((tempID & 0x7FF) << 18) ;
   }
 //--- Append message to driver receive FIFO
-  mDriverReceiveBuffer.append (message) ;
-//--- If mDriverReceiveBuffer is full, disable receive interrupt (added in release 2.17)
-  if (mDriverReceiveBuffer.isFull ()) {
-    mRxInterruptEnabled = false ;
-    if (mINT != 255) {
-      uint8_t data8 = readRegister8Assume_SPI_transaction (INT_REGISTER + 2) ;
-      data8 &= ~ (1 << 1) ; // Receive FIFO Interrupt disable
-      writeRegister8Assume_SPI_transaction (INT_REGISTER + 2, data8) ;
-    }
+  if (mDriverReceiveBuffer.isFull()) {
+    // Delete oldest message if full 
+    CANFDMessage buffer;
+    mDriverReceiveBuffer.remove(buffer);
   }
+  mDriverReceiveBuffer.append (message) ;
+  
 }
 
 //----------------------------------------------------------------------------------------------------------------------
