@@ -41,10 +41,14 @@ class ACAN2517FDSettings {
   } CLKOpin ;
 
   public: typedef enum : uint8_t {
+    NormalFD = 0,
+    Sleep = 1,
     InternalLoopBack = 2,
-    ExternalLoopBack = 5,
     ListenOnly = 3,
-    NormalFD = 0
+    Configuration = 4,
+    ExternalLoopBack = 5,
+    Normal20B = 6,
+    RestrictedOperation = 7
   } RequestedMode ;
 
   public: typedef enum : uint8_t {Disabled, ThreeAttempts, UnlimitedNumber} RetransmissionAttempts ;
@@ -118,6 +122,9 @@ class ACAN2517FDSettings {
   public: bool mArbitrationBitRateClosedToDesiredRate = false ; // The above configuration is not correct
 //--- Transmitter Delay Compensation Offset
   public: int8_t mTDCO = 0 ; // -64 ... +63
+
+//--- Wake interrupt enable
+  public: bool mEnableWakeInterrupt = true;
 
 //······················································································································
 //    MCP2517FD TXCAN pin is Open Drain ?

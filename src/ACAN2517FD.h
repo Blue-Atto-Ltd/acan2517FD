@@ -9,10 +9,10 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
-#include <ACAN2517FDSettings.h>
-#include <ACANFDBuffer.h>
-#include <CANMessage.h>
-#include <ACAN2517FDFilters.h>
+#include "ACAN2517FDSettings.h"
+#include "ACANFDBuffer.h"
+#include "CANMessage.h"
+#include "ACAN2517FDFilters.h"
 #include <SPI.h>
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -63,6 +63,13 @@ class ACAN2517FD {
   public: static const uint32_t kISRNotNullAndNoIntPin              = uint32_t (1) << 19 ;
   public: static const uint32_t kInvalidTDCO                        = uint32_t (1) << 20 ;
 
+
+//··································································································
+//    Change Mode
+//··································································································
+
+  public: uint16_t setRequestedMode (ACAN2517FDSettings::RequestedMode requestedMode) ;
+
 //······················································································································
 //   end method (resets the MCP2517FD, deallocate buffers, and detach interrupt pin)
 //   Return true if end method succeeds, and false otherwise
@@ -106,18 +113,7 @@ class ACAN2517FD {
 //    Current MCP2517FD Operation Mode
 //······················································································································
 
-  public: typedef enum : uint8_t {
-    NormalFD = 0,
-    Sleep = 1,
-    InternalLoopBack = 2,
-    ListenOnly = 3,
-    Configuration = 4,
-    ExternalLoopBack = 5,
-    Normal20B = 6,
-    RestrictedOperation = 7
-  } OperationMode ;
-
-  public: OperationMode currentOperationMode (void) ;
+  public: ACAN2517FDSettings::RequestedMode currentOperationMode (void) ;
 
 //······················································································································
 //    Recovery from Restricted Operation Mode

@@ -5,7 +5,7 @@
 //
 //----------------------------------------------------------------------------------------------------------------------
 
-#include <ACAN2517FD.h>
+#include "ACAN2517FD.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -450,6 +450,9 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
     data8 |= (1 << 0) ; // Transmit FIFO Interrupt Enable
     writeRegister8 (INT_REGISTER + 2, data8) ;
     data8  = (1 << 2) ; // TXATIE ---> 1: Transmit Attempt Interrupt Enable bit
+    if (inSettings.mEnableWakeInterrupt) {
+      data8 |= (1 << 6); // WAKIE ---> 1: Wake Interrupt Enable
+    }
     writeRegister8 (INT_REGISTER + 3, data8) ;
   //----------------------------------- Program nominal bit rate (NBTCFG register)
   //  bits 31-24: BRP - 1
@@ -485,22 +488,10 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
       data |= inSettings.mDataSJW - 1 ;
       writeRegister32 (DBTCFG_REGISTER, data) ;
     }
-  //----------------------------------- Request mode (CON_REGISTER + 3, DS20005688B, page 24)
-  //  bits 7-4: Transmit Bandwith Sharing Bits ---> 0
-  //  bit 3: Abort All Pending Transmissions bit --> 0
-    mTXBWS_RequestedMode = inSettings.mRequestedMode | (TXBWS << 4) ;
-    writeRegister8 (CON_REGISTER + 3, mTXBWS_RequestedMode);
-  //----------------------------------- Wait (10 ms max) until requested mode is reached
-    bool wait = true ;
-    const uint32_t deadline = millis () + 10 ;
-    while (wait) {
-     const uint8_t actualMode = (readRegister8 (CON_REGISTER + 2) >> 5) & 0x07 ;
-      wait = actualMode != inSettings.mRequestedMode ;
-      if (wait && (millis () >= deadline)) {
-        errorCode |= kRequestedModeTimeOut ;
-        wait = false ;
-      }
-    }
+
+  // Request mode
+    errorCode |= setRequestedMode(inSettings.mRequestedMode);
+    
     #ifdef ARDUINO_ARCH_ESP32
       xTaskCreate (myESP32Task, "ACAN2517Handler", 1024, this, 256, &mESP32TaskHandle) ;
     #endif
@@ -519,6 +510,33 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
   }
 //---
   return errorCode ;
+}
+
+
+//··································································································
+//   setRequestedMode (private method)
+//··································································································
+
+uint16_t ACAN2517FD::setRequestedMode(ACAN2517FDSettings::RequestedMode requestedMode)
+{
+  uint16_t errorCode = 0;
+  //----------------------------------- Request mode (CON_REGISTER + 3, DS20005688B, page 24)
+  //  bits 7-4: Transmit Bandwith Sharing Bits ---> 0
+  //  bit 3: Abort All Pending Transmissions bit --> 0
+    uint8_t inCANControlRegister = requestedMode | (TXBWS << 4) ;
+    writeRegister8 (CON_REGISTER + 3, inCANControlRegister);
+  //----------------------------------- Wait (10 ms max) until requested mode is reached
+    bool wait = true ;
+    const uint32_t deadline = millis () + 10 ;
+    while (wait) {
+     const uint8_t actualMode = (readRegister8 (CON_REGISTER + 2) >> 5) & 0x07 ;
+      wait = actualMode != requestedMode ;
+      if (wait && (millis () >= deadline)) {
+        errorCode |= kRequestedModeTimeOut ;
+        wait = false ;
+      }
+    }
+  return errorCode;
 }
 
 //······················································································································
@@ -929,6 +947,10 @@ void ACAN2517FD::isr_poll_core (void) {
           }
           writeRegister8Assume_SPI_transaction (FIFOSTA_REGISTER (RECEIVE_FIFO_INDEX), ~ (1 << 3)) ;
         }
+        if ((it & (1 << 14)) != 0) { // WAKIF interrupt (Bus wake up interrupt flag bit)
+          writeRegister8Assume_SPI_transaction(INT_REGISTER + 1, ~(1 << 6));
+          handled = true;
+        }
       }
     #ifdef ARDUINO_ARCH_ESP32
       taskENABLE_INTERRUPTS () ;
@@ -1208,16 +1230,16 @@ uint32_t ACAN2517FD::readRegister32 (const uint16_t inRegisterAddress) {
 //    Current MCP2517FD Operation Mode
 //······················································································································
 
-ACAN2517FD::OperationMode ACAN2517FD::currentOperationMode (void) {
+ACAN2517FDSettings::RequestedMode ACAN2517FD::currentOperationMode (void) {
   const uint8_t mode = readRegister8 (CON_REGISTER + 2) >> 5 ;
-  return ACAN2517FD::OperationMode (mode) ;
+  return ACAN2517FDSettings::RequestedMode (mode) ;
 }
 
 //······················································································································
 
 bool ACAN2517FD::recoverFromRestrictedOperationMode (void) {
    bool recoveryDone = false ;
-   if (currentOperationMode () == ACAN2517FD::RestrictedOperation) { // In Restricted Operation Mode
+   if (currentOperationMode () == ACAN2517FDSettings::RestrictedOperation) { // In Restricted Operation Mode
   //----------------------------------- Request mode (CON_REGISTER + 3)
   //  bits 7-4: Transmit Bandwith Sharing Bits ---> 0
   //  bit 3: Abort All Pending Transmissions bit --> 0
