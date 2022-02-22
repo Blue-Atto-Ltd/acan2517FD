@@ -227,7 +227,6 @@ uint32_t ACAN2517FD::begin(const ACAN2517FDSettings &inSettings,
 {
   uint32_t errorCode = 0; // Means no error
                           //----------------------------------- If ok, check if settings are correct
-  settings = inSettings;
   if (!inSettings.mArbitrationBitRateClosedToDesiredRate)
   {
     errorCode |= kTooFarFromDesiredBitRate;
@@ -347,7 +346,7 @@ uint32_t ACAN2517FD::begin(const ACAN2517FDSettings &inSettings,
 
   // Set clocks if no error
   if (errorCode == 0) {
-    errorCode = wake(errorCode);
+    errorCode = wake(inSettings, errorCode);
   }
   //----------------------------------- Set full speed clock
   mSPISettings = SPISettings(inSettings.sysClock() / 2, MSBFIRST, SPI_MODE0);
@@ -529,7 +528,7 @@ uint32_t ACAN2517FD::begin(const ACAN2517FDSettings &inSettings,
 //    Wake up via MCU
 //··································································································
 
-uint32_t ACAN2517FD::wake(uint32_t errorCode = 0)
+uint32_t ACAN2517FD::wake(const ACAN2517FDSettings& settings, uint32_t errorCode = 0)
 {
   //----------------------------------- Now, set internal clock with OSC register
   //     Bit 0: (rw) 1 --> 10xPLL

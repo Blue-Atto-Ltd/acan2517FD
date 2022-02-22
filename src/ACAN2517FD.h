@@ -74,7 +74,7 @@ class ACAN2517FD {
 //    Wake up via MCU
 //··································································································
 
-  public: uint32_t wake (uint32_t errorCode = 0) ;
+  public: uint32_t wake ( const ACAN2517FDSettings& settings, uint32_t errorCode = 0) ;
 
 //······················································································································
 //   end method (resets the MCP2517FD, deallocate buffers, and detach interrupt pin)
@@ -136,7 +136,6 @@ class ACAN2517FD {
   #endif
   private: SPISettings mSPISettings ;
   private: SPIClass & mSPI ;
-  private: const ACAN2517FDSettings& settings;
   private: const uint8_t mCS ;
   private: const uint8_t mINT ;
   private: bool mUsesTXQ ;
